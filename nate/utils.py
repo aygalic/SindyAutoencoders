@@ -61,11 +61,11 @@ def spring_to_movie(x, dt=0.01, dim = 100):
     
     
     
-    
+"""
 def z_derivative(model, data):
-    """
-    main difference between this function and the one they have is that i use ALL the model weights 
-    """
+
+    #main difference between this function and the one they have is that i use ALL the model weights 
+
     x, dx = data #unpack 
 
     temp = x
@@ -83,5 +83,5 @@ def z_derivative(model, data):
         #dz = tf.multiply(temp*(1-temp), tf.matmul(dz, weight)) #derivative sigmoid 
 
     return dz
-
+"""
 
