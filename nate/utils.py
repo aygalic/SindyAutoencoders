@@ -33,9 +33,9 @@ def spring_to_movie(x, dt=0.01, dim = 100):
     
     nsamples = x.shape[0]
     
-    z = np.zeros((nsamples, dim, dim))
-    dz = np.zeros((nsamples, dim, dim))
-    ddz = np.zeros((nsamples, dim, dim))
+    z = np.zeros((nsamples, dim, dim), dtype = 'float32')
+    dz = np.zeros((nsamples, dim, dim), dtype = 'float32')
+    ddz = np.zeros((nsamples, dim, dim), dtype = 'float32')
     
     #create images 
     for i in range(nsamples):
@@ -51,37 +51,95 @@ def spring_to_movie(x, dt=0.01, dim = 100):
             
         
     #second derivatives
-    ddz[1] = (dz[1]-dz[0])/dt
+    #ddz[1] = (dz[1]-dz[0])/dt
     for i in range(nsamples-3):
         ddz[i+2] = (dz[i+3]-dz[i+1])/(2*dt)
     
     ddz[-1] = -(dz[-1]-dz[-2])/dt    
     
     return z,dz,ddz
-    
-    
-    
-"""
-def z_derivative(model, data):
 
-    #main difference between this function and the one they have is that i use ALL the model weights 
 
+
+def z_derivative(model, data, activations):
+    assert len(model.weights)//2 == len(activations)
+    
     x, dx = data #unpack 
+    
+    #cast rn 
+    x = x.astype('float32')
+    dx = dx.astype('float32')
 
-    temp = x
+    z = x
     dz = dx
     for i in range(len(model.weights)//2):
-        weight = model.weights[2*i]
-        bias = model.weights[2*i+1]
+        if activations[i] == 'relu':
+            z = tf.matmul(z, model.weights[2*i]) + model.weights[2*i+1] #pre-activation
+            dz = tf.multiply(tf.cast(z>0, float), tf.matmul(dz, model.weights[2*i])) #derivative relu 
 
-        #add a switch case here or something for selecting the activation 
+            z = tf.nn.relu(z) #relu
+            
+        elif activations[i] == 'sigmoid':
+            z = tf.matmul(z, model.weights[2*i]) + model.weights[2*i+1] #pre-activation
+            dz = tf.multiply(z*(1-z), tf.matmul(dz, model.weights[2*i])) #derivative sigmoid 
 
-        temp = tf.matmul(temp, weight) + bias #pre-activation
-        temp = tf.nn.relu(temp) #activation 
-
-        dz = tf.multiply(tf.cast(temp>0, float), tf.matmul(dz, weight)) #derivative relu 
-        #dz = tf.multiply(temp*(1-temp), tf.matmul(dz, weight)) #derivative sigmoid 
+            z = tf.nn.sigmoid(z) #sigmoid
+            
+        else: #linear
+            z = tf.matmul(z, model.weights[2*i]) + model.weights[2*i+1]
+            dz = tf.matmul(dz, model.weights[2*i])
 
     return dz
-"""
+    
+    
+    
+    
+
+#i'm trusting the authors had this one figured out 
+def z_derivative2(model, data, activations):
+    assert len(model.weights)//2 == len(activations)
+    
+    x, dx, ddx = data #unpack 
+    
+    #need this for matrix multiplications rn 
+    #x = x.astype('float32')
+    #dx = dx.astype('float32')
+    #ddx = ddx.astype('float32')
+    
+    """the following code is truncated to the relevant activation functions for us"""
+    z = x
+    dz = dx
+    ddz = ddx
+    
+    # NOTE: currently having trouble assessing accuracy of 2nd derivative due to discontinuity
+    for i in range(len(model.weights)//2):
+        if activations[i] == 'relu':
+            z = tf.matmul(z, model.weights[2*i]) + model.weights[2*i+1]
+            a_derivative = tf.cast(z>0, float)
+            dz = tf.multiply(a_derivative, tf.matmul(dz, model.weights[2*i]))
+            ddz = tf.multiply(a_derivative, tf.matmul(ddz, model.weights[2*i]))  #in relu case f'' = 0
+            z = tf.nn.relu(z)
+        
+        elif activations[i] == 'sigmoid':
+            z = tf.matmul(z, model.weights[2*i]) + model.weights[2*i+1]
+            z = tf.sigmoid(z)
+            dz_prev = tf.matmul(dz, model.weights[2*i])
+            
+            #f' & f''
+            sigmoid_derivative = tf.multiply(z, 1-z) 
+            sigmoid_derivative2 = tf.multiply(sigmoid_derivative, 1 - 2*z)
+
+            #chain rule 
+            dz = tf.multiply(sigmoid_derivative, dz_prev)
+            ddz = tf.multiply(sigmoid_derivative2, tf.square(dz_prev)) \
+                  + tf.multiply(sigmoid_derivative, tf.matmul(ddz, model.weights[2*i]))
+            
+        else: #linear
+            z = tf.matmul(z, model.weights[2*i]) + model.weights[2*i+1]
+            dz = tf.matmul(dz, model.weights[2*i])
+            ddz = tf.matmul(ddz, model.weights[2*i])
+            
+              
+    return dz, ddz
+
 
