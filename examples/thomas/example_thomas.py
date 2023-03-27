@@ -37,7 +37,7 @@ def get_thomas_data(n_ics, noise_strength=0):
     return data
 
 
-def thomas_coefficients(normalization, poly_order=3, b = 0.1, h = 0.001):
+def thomas_coefficients(normalization, poly_order=2, b = 0.1, h = 0.001):
     """
     Generate the SINDy coefficient matrix for the Lorenz system.
 
@@ -53,7 +53,7 @@ def thomas_coefficients(normalization, poly_order=3, b = 0.1, h = 0.001):
     """
 
 
-    Xi = np.zeros((library_size(3,poly_order),3))
+    Xi = np.zeros((library_size(3,poly_order, use_sine=True),3))
 
     # Lorenz case
     #            dx       dy        dy
